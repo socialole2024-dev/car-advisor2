@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="margin-top:16px;">
+  <a href="{{ url_for('dashboard') }}" style="font-size:14px;color:#888;text-decoration:none;">&#8592; Zur&#xFC;ck</a>
+  <div class="card" style="margin-top:12px;">
+    <p class="page-title">{{ advice.title[:60] }}</p>
+    <p class="page-sub">Quelle: {{ advice.source }} &middot; {{ advice.url[:50] }}...</p>
+    {% if vehicle_data %}
+    <div style="margin-bottom:16px;">
+      {% for key, val in vehicle_data.items() %}
+        {% if val %}
+        <div class="advice-item">
+          <span class="stat-label" style="font-size:13px;color:#666;text-transform:capitalize;">{{ key }}</span>
+          <span style="font-weight:600;font-size:14px;">{{ val }}</span>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div style="background:#f5f5f0;border-radius:10px;padding:16px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">&#x1F916;</div>
+      <p style="font-weight:600;margin-bottom:4px;">KI-Analyse kommt bald</p>
+      <p style="font-size:13px;color:#888;">Fahrzeugdaten wurden gespeichert. Die KI-Checkliste wird in der n&#xE4;chsten Version automatisch generiert.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
