@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-top:60px;text-align:center;padding:40px 24px;">
+  <div style="font-size:48px;margin-bottom:16px;">&#x23F3;</div>
+  <p class="page-title" style="margin-bottom:8px;">Konto wird gepr&#xFC;ft</p>
+  <p style="font-size:14px;color:#888;line-height:1.6;margin-bottom:24px;">
+    Deine Registrierung wurde erhalten. Der Admin wird dein Konto in K&#xFC;rze freigeben.<br>
+    Du erh&#xE4;ltst eine E-Mail sobald du Zugriff hast.
+  </p>
+  <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="width:auto;padding:10px 24px;">Ausloggen</a>
+</div>
+{% endblock %}
