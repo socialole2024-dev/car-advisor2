@@ -1,12 +1,16 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from scraper import scrape_url
 from advisor import generate_checklist
+from exporter import build_export_html
 from functools import wraps
-import os, json, smtplib
+import os, json, smtplib, io
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -25,7 +29,8 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    notify_email = db.Column(db.String(150))
+    status = db.Column(db.String(20), default='pending')
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.now())
     advices = db.relationship('Advice', backref='user', lazy=True)
@@ -53,12 +58,19 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-def send_email(to, subject, body):
+def send_email(to, subject, body, attachment_name=None, attachment_data=None):
     try:
-        msg = MIMEText(body, 'plain', 'utf-8')
+        msg = MIMEMultipart()
         msg['Subject'] = subject
         msg['From'] = MAIL_USER
         msg['To'] = to
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        if attachment_name and attachment_data:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment_data)
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{attachment_name}"')
+            msg.attach(part)
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(MAIL_USER, MAIL_PASSWORD)
             server.sendmail(MAIL_USER, to, msg.as_string())
@@ -119,16 +131,13 @@ def register():
         else:
             is_admin = (email == ADMIN_EMAIL)
             status = 'approved' if is_admin else 'pending'
-            user = User(email=email, password_hash=generate_password_hash(password), status=status, is_admin=is_admin)
+            user = User(email=email, password_hash=generate_password_hash(password), status=status, is_admin=is_admin, notify_email=email)
             db.session.add(user)
             db.session.commit()
             login_user(user)
             if not is_admin:
-                send_email(
-                    ADMIN_EMAIL,
-                    f'Car Advisor: Neue Registrierung - {email}',
-                    f'Neue Registrierung auf Car Advisor:\n\nE-Mail: {email}\n\nJetzt freigeben oder ablehnen:\nhttps://car-advisor2-1.onrender.com/admin'
-                )
+                send_email(ADMIN_EMAIL, f'Car Advisor: Neue Registrierung - {email}',
+                    f'Neue Registrierung:\n\nE-Mail: {email}\n\nJetzt freigeben:\nhttps://car-advisor2-1.onrender.com/admin')
             return redirect(url_for('index'))
     return render_template('register.html')
 
@@ -147,6 +156,59 @@ def dashboard():
     advices = Advice.query.filter_by(user_id=current_user.id).order_by(Advice.created_at.desc()).all()
     return render_template('dashboard.html', advices=advices)
 
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        notify_email = request.form.get('notify_email', '').strip()
+        current_user.notify_email = notify_email
+        db.session.commit()
+        flash('E-Mail gespeichert.')
+    return render_template('profile.html')
+
+@app.route('/export', methods=['POST'])
+@login_required
+def export():
+    ids = request.form.getlist('advice_ids')
+    if not ids:
+        flash('Bitte mindestens ein Fahrzeug auswaehlen.')
+        return redirect(url_for('dashboard'))
+    if len(ids) > 5:
+        flash('Maximal 5 Fahrzeuge auswaehlbar.')
+        return redirect(url_for('dashboard'))
+    
+    advices_data = []
+    for aid in ids:
+        advice = Advice.query.filter_by(id=int(aid), user_id=current_user.id).first()
+        if advice and advice.checklist_data:
+            advices_data.append({
+                'advice': {'title': advice.title, 'url': advice.url or ''},
+                'checklist': json.loads(advice.checklist_data)
+            })
+    
+    if not advices_data:
+        flash('Keine analysierten Fahrzeuge ausgewaehlt.')
+        return redirect(url_for('dashboard'))
+    
+    html_content = build_export_html(advices_data)
+    
+    action = request.form.get('action', 'download')
+    if action == 'email':
+        notify_email = current_user.notify_email or current_user.email
+        send_email(
+            notify_email,
+            'Car Advisor: Deine Kaufberatung',
+            f'Deine Kaufberatung fuer {len(advices_data)} Fahrzeug(e) ist im Anhang.\n\nViel Erfolg beim Autokauf!',
+            attachment_name='kaufberatung.html',
+            attachment_data=html_content.encode('utf-8')
+        )
+        flash(f'Kaufberatung wurde an {notify_email} gesendet.')
+        return redirect(url_for('dashboard'))
+    else:
+        buf = io.BytesIO(html_content.encode('utf-8'))
+        buf.seek(0)
+        return send_file(buf, mimetype='text/html', as_attachment=True, download_name='kaufberatung.html')
+
 @app.route('/admin')
 @login_required
 @admin_required
@@ -162,8 +224,8 @@ def approve_user(user_id):
     user.status = 'approved'
     db.session.commit()
     send_email(user.email, 'Car Advisor: Dein Konto wurde freigegeben!',
-        'Hallo,\n\ndein Car Advisor Konto wurde freigegeben. Du kannst dich jetzt einloggen:\nhttps://car-advisor2-1.onrender.com/login\n\nViel Erfolg beim Autokauf!')
-    flash(f'{user.email} wurde freigegeben.')
+        'Hallo,\n\ndein Car Advisor Konto wurde freigegeben.\nhttps://car-advisor2-1.onrender.com/login\n\nViel Erfolg!')
+    flash(f'{user.email} freigegeben.')
     return redirect(url_for('admin'))
 
 @app.route('/admin/reject/<int:user_id>')
@@ -173,7 +235,7 @@ def reject_user(user_id):
     user = User.query.get_or_404(user_id)
     user.status = 'rejected'
     db.session.commit()
-    flash(f'{user.email} wurde abgelehnt.')
+    flash(f'{user.email} abgelehnt.')
     return redirect(url_for('admin'))
 
 @app.route('/admin/delete/<int:user_id>')
@@ -187,7 +249,7 @@ def delete_user(user_id):
     Advice.query.filter_by(user_id=user.id).delete()
     db.session.delete(user)
     db.session.commit()
-    flash(f'{user.email} wurde geloescht.')
+    flash(f'{user.email} geloescht.')
     return redirect(url_for('admin'))
 
 @app.route('/new', methods=['GET', 'POST'])
