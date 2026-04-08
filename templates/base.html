@@ -38,6 +38,8 @@ label { font-size: 13px; font-weight: 600; color: #666; display: block; margin-b
   <nav>
     {% if current_user.is_authenticated %}
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('profile') }}">Profil</a>
+      {% if current_user.is_admin %}<a href="{{ url_for('admin') }}" style="color:#4ADE80;">Admin</a>{% endif %}
       <a href="{{ url_for('logout') }}">Logout</a>
     {% else %}
       <a href="{{ url_for('login') }}">Login</a>
