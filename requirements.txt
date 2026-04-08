@@ -5,3 +5,4 @@ werkzeug==3.0.3
 gunicorn==22.0.0
 requests==2.31.0
 beautifulsoup4==4.12.3
+anthropic==0.40.0
