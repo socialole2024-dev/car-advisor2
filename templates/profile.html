@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-top:20px;">
+  <p class="page-title">Mein Profil</p>
+  <p class="page-sub">E-Mail f&#xFC;r Export</p>
+  <form method="POST">
+    <label>Export-E-Mail</label>
+    <input type="email" name="notify_email" value="{{ current_user.notify_email or current_user.email }}" placeholder="deine@email.de">
+    <p style="font-size:13px;color:#888;margin-top:-8px;margin-bottom:16px;">An diese Adresse wird die HTML-Kaufberatung gesendet.</p>
+    <button type="submit" class="btn btn-primary">Speichern</button>
+  </form>
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+    <p style="font-size:13px;color:#888;">Konto: <strong>{{ current_user.email }}</strong></p>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('admin') }}" style="font-size:14px;font-weight:600;color:#1a1a1a;text-decoration:none;display:block;margin-top:10px;">&#x1F6E1;&#xFE0F; Admin-Panel &#x2192;</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
