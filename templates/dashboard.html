@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; margin-top:10px;">
+  <div>
+    <p class="page-title">Meine Beratungen</p>
+    <p class="page-sub">{{ advices|length }} gespeicherte Analyse{{ 'n' if advices|length != 1 }}</p>
+  </div>
+  <a href="{{ url_for('new_advice') }}" class="btn btn-primary" style="width:auto; padding:10px 20px;">+ Neu</a>
+</div>
+{% if advices %}
+<div class="card">
+  {% for a in advices %}
+  <div class="advice-item">
+    <div>
+      <div class="advice-title">{{ a.title }}</div>
+      <div class="advice-url">{{ a.url }}</div>
+    </div>
+    <span class="badge">NEU</span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+  <div style="font-size:40px; margin-bottom:12px;">&#x1F697;</div>
+  <p style="font-weight:600; margin-bottom:6px;">Noch keine Beratungen</p>
+  <p style="font-size:14px; margin-bottom:20px;">F&#xFC;g einen Inserate-Link ein und bekomm sofort eine KI-Kaufberatung.</p>
+  <a href="{{ url_for('new_advice') }}" class="btn btn-primary">Erste Beratung starten</a>
+</div>
+{% endif %}
+{% endblock %}
