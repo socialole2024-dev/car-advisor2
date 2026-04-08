@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-top:40px;">
+  <p class="page-title">Konto erstellen</p>
+  <p class="page-sub">Kostenlos starten</p>
+  <form method="POST">
+    <label>E-Mail</label>
+    <input type="email" name="email" placeholder="du@beispiel.de" required>
+    <label>Passwort</label>
+    <input type="password" name="password" placeholder="Mind. 6 Zeichen" required>
+    <button type="submit" class="btn btn-primary">Konto erstellen</button>
+  </form>
+  <div class="divider">Schon ein Konto?</div>
+  <a href="{{ url_for('login') }}" class="btn btn-secondary">Einloggen</a>
+</div>
+{% endblock %}
