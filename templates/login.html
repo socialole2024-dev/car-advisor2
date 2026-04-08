@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-top:40px;">
+  <p class="page-title">Willkommen zuruck</p>
+  <p class="page-sub">Meld dich an</p>
+  <form method="POST">
+    <label>E-Mail</label>
+    <input type="email" name="email" placeholder="du@beispiel.de" required>
+    <label>Passwort</label>
+    <input type="password" name="password" placeholder="Passwort" required>
+    <button type="submit" class="btn btn-primary">Einloggen</button>
+  </form>
+  <div class="divider">Noch kein Konto?</div>
+  <a href="{{ url_for('register') }}" class="btn btn-secondary">Jetzt registrieren</a>
+</div>
+{% endblock %}
