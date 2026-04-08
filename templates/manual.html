@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-top:20px;">
+  <p class="page-title">Fahrzeugdaten eingeben</p>
+  <p class="page-sub">Inserat konnte nicht automatisch ausgelesen werden. Bitte Daten eingeben.</p>
+  <form method="POST">
+    <label>Fahrzeugbezeichnung</label>
+    <input type="text" name="title" placeholder="z.B. VW Golf 1.4 TSI" required>
+    <label>Marke</label>
+    <input type="text" name="make" placeholder="z.B. Volkswagen">
+    <label>Modell</label>
+    <input type="text" name="model" placeholder="z.B. Golf">
+    <label>Baujahr</label>
+    <input type="text" name="year" placeholder="z.B. 2015">
+    <label>Kilometerstand</label>
+    <input type="text" name="mileage" placeholder="z.B. 85000">
+    <label>Preis (&#x20AC;)</label>
+    <input type="text" name="price" placeholder="z.B. 8500">
+    <label>Kraftstoff</label>
+    <input type="text" name="fuel" placeholder="z.B. Benzin / Diesel">
+    <button type="submit" class="btn btn-primary" style="margin-top:8px;">Analyse starten &#x2192;</button>
+  </form>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Abbrechen</a>
+</div>
+{% endblock %}
