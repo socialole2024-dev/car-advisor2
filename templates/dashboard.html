@@ -1,30 +1,82 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; margin-top:10px;">
+<style>
+.select-bar{background:#1a1a1a;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;display:none;}
+.select-bar.visible{display:block;}
+.select-info{font-size:14px;margin-bottom:10px;}
+.select-actions{display:flex;gap:8px;}
+.btn-export{padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;}
+.btn-dl{background:#4ADE80;color:#1a1a1a;}
+.btn-mail{background:#fff;color:#1a1a1a;}
+.advice-checkbox{width:20px;height:20px;border-radius:6px;cursor:pointer;flex-shrink:0;}
+</style>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;margin-top:10px;">
   <div>
     <p class="page-title">Meine Beratungen</p>
-    <p class="page-sub">{{ advices|length }} gespeicherte Analyse{{ 'n' if advices|length != 1 }}</p>
+    <p class="page-sub">{{ advices|length }} Analyse{{ 'n' if advices|length != 1 }}</p>
   </div>
-  <a href="{{ url_for('new_advice') }}" class="btn btn-primary" style="width:auto; padding:10px 20px;">+ Neu</a>
+  <a href="{{ url_for('new_advice') }}" class="btn btn-primary" style="width:auto;padding:10px 20px;">+ Neu</a>
 </div>
-{% if advices %}
-<div class="card">
-  {% for a in advices %}
-  <div class="advice-item">
-    <div>
-      <div class="advice-title">{{ a.title }}</div>
-      <div class="advice-url">{{ a.url }}</div>
+
+<form id="exportForm" action="{{ url_for('export') }}" method="POST">
+  <div class="select-bar" id="selectBar">
+    <div class="select-info">&#x1F4E6; <span id="selectCount">0</span> Fahrzeug(e) ausgew&#xE4;hlt (max. 5)</div>
+    <div class="select-actions">
+      <button type="submit" name="action" value="download" class="btn-export btn-dl">&#x2193; Download HTML</button>
+      <button type="submit" name="action" value="email" class="btn-export btn-mail">&#x2709;&#xFE0F; Per E-Mail senden</button>
     </div>
-    <span class="badge">NEU</span>
   </div>
-  {% endfor %}
-</div>
-{% else %}
-<div class="card empty">
-  <div style="font-size:40px; margin-bottom:12px;">&#x1F697;</div>
-  <p style="font-weight:600; margin-bottom:6px;">Noch keine Beratungen</p>
-  <p style="font-size:14px; margin-bottom:20px;">F&#xFC;g einen Inserate-Link ein und bekomm sofort eine KI-Kaufberatung.</p>
-  <a href="{{ url_for('new_advice') }}" class="btn btn-primary">Erste Beratung starten</a>
-</div>
-{% endif %}
+
+  {% if advices %}
+  <div class="card" style="padding:0;">
+    {% for a in advices %}
+    <div class="advice-item" style="padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+        {% if a.checklist_data %}
+        <input type="checkbox" name="advice_ids" value="{{ a.id }}" class="advice-checkbox" onchange="updateSelection()">
+        {% else %}
+        <div style="width:20px;flex-shrink:0;"></div>
+        {% endif %}
+        <div style="flex:1;min-width:0;">
+          <a href="{{ url_for('show_advice', advice_id=a.id) }}" style="text-decoration:none;color:inherit;">
+            <div class="advice-title">{{ a.title[:50] }}</div>
+            <div class="advice-url">{{ a.url[:60] if a.url else '—' }}</div>
+          </a>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        {% if a.checklist_data %}
+          <span class="badge" style="background:#D1FAE5;color:#065F46;">&#x2713; Analysiert</span>
+        {% else %}
+          <a href="{{ url_for('analyze', advice_id=a.id) }}" class="badge" style="background:#FEF3C7;color:#92400E;text-decoration:none;">Analysieren</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card empty">
+    <div style="font-size:40px;margin-bottom:12px;">&#x1F697;</div>
+    <p style="font-weight:600;margin-bottom:6px;">Noch keine Beratungen</p>
+    <p style="font-size:14px;margin-bottom:20px;">F&#xFC;g einen Inserate-Link ein und erhalte sofort eine KI-Kaufberatung.</p>
+    <a href="{{ url_for('new_advice') }}" class="btn btn-primary">Erste Beratung starten</a>
+  </div>
+  {% endif %}
+</form>
+
+<script>
+function updateSelection(){
+  var boxes=document.querySelectorAll('.advice-checkbox:checked');
+  var bar=document.getElementById('selectBar');
+  var count=document.getElementById('selectCount');
+  count.textContent=boxes.length;
+  bar.classList.toggle('visible', boxes.length > 0);
+  // Enforce max 5
+  if(boxes.length >= 5){
+    document.querySelectorAll('.advice-checkbox:not(:checked)').forEach(function(b){b.disabled=true;});
+  } else {
+    document.querySelectorAll('.advice-checkbox').forEach(function(b){b.disabled=false;});
+  }
+}
+</script>
 {% endblock %}
