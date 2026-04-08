@@ -17,8 +17,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///caradvisor.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'olec.laude@gmail.com')
-MAIL_USER = os.environ.get('MAIL_USER', 'olec.laude@gmail.com')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'olec.laude@pm.me')
+MAIL_USER = os.environ.get('MAIL_USER', 'olec.laude@pm.me')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
 
 db = SQLAlchemy(app)
