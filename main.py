@@ -1,8 +1,10 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from scraper import scrape_url
 import os
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
@@ -24,6 +26,8 @@ class Advice(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     url = db.Column(db.String(500))
     title = db.Column(db.String(200))
+    vehicle_data = db.Column(db.Text)
+    source = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=db.func.now())
 
 @login_manager.user_loader
@@ -82,12 +86,63 @@ def new_advice():
         url = request.form.get('url', '').strip()
         if not url:
             flash('Bitte eine URL eingeben.')
+            return render_template('new.html')
+
+        # Try scraping
+        vehicle_data, source = scrape_url(url)
+
+        if vehicle_data:
+            title = vehicle_data.get('title', 'Fahrzeug')
+            # Trim title to 200 chars
+            title = title[:200] if title else 'Fahrzeug'
         else:
-            advice = Advice(user_id=current_user.id, url=url, title='Analyse laeuft...')
-            db.session.add(advice)
-            db.session.commit()
-            return redirect(url_for('dashboard'))
+            title = 'Manuelle Eingabe erforderlich'
+            source = 'unknown'
+
+        advice = Advice(
+            user_id=current_user.id,
+            url=url,
+            title=title,
+            vehicle_data=json.dumps(vehicle_data or {}),
+            source=source
+        )
+        db.session.add(advice)
+        db.session.commit()
+
+        if vehicle_data:
+            return redirect(url_for('show_advice', advice_id=advice.id))
+        else:
+            return redirect(url_for('manual_input', advice_id=advice.id))
+
     return render_template('new.html')
+
+@app.route('/advice/<int:advice_id>')
+@login_required
+def show_advice(advice_id):
+    advice = Advice.query.filter_by(id=advice_id, user_id=current_user.id).first_or_404()
+    vehicle_data = json.loads(advice.vehicle_data or '{}')
+    return render_template('advice.html', advice=advice, vehicle_data=vehicle_data)
+
+@app.route('/manual/<int:advice_id>', methods=['GET', 'POST'])
+@login_required
+def manual_input(advice_id):
+    advice = Advice.query.filter_by(id=advice_id, user_id=current_user.id).first_or_404()
+    if request.method == 'POST':
+        vehicle_data = {
+            'title': request.form.get('title', ''),
+            'make': request.form.get('make', ''),
+            'model': request.form.get('model', ''),
+            'year': request.form.get('year', ''),
+            'mileage': request.form.get('mileage', '') + ' km',
+            'price': request.form.get('price', '') + ' EUR',
+            'fuel': request.form.get('fuel', ''),
+        }
+        advice.title = vehicle_data['title'] or (vehicle_data['make'] + ' ' + vehicle_data['model'])
+        advice.vehicle_data = json.dumps(vehicle_data)
+        advice.source = 'manual'
+        db.session.commit()
+        return redirect(url_for('show_advice', advice_id=advice.id))
+    return render_template('manual.html', advice=advice)
 
 @app.route('/logout')
 @login_required
