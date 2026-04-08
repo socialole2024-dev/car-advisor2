@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.status-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;}
+.s-pending{background:#FEF3C7;color:#92400E;}
+.s-approved{background:#D1FAE5;color:#065F46;}
+.s-rejected{background:#FEE2E2;color:#991B1B;}
+.s-admin{background:#EDE9FE;color:#5B21B6;}
+.user-row{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.btn-sm{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:inline-block;margin-right:6px;margin-bottom:4px;}
+</style>
+<div style="margin-top:16px;">
+<p class="page-title">&#x1F6E1;&#xFE0F; Admin-Panel</p>
+<p class="page-sub">{{ users|length }} registrierte Nutzer</p>
+{% set pending_users = users|selectattr("status","eq","pending")|list %}
+{% if pending_users %}
+<div style="background:#FEF3C7;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:14px;font-weight:600;color:#92400E;">
+&#x23F3; {{ pending_users|length }} Nutzer wartet auf Freigabe
+</div>
+{% endif %}
+{% for user in users %}
+<div class="user-row">
+  <div style="font-weight:600;font-size:15px;margin-bottom:4px;">{{ user.email }}</div>
+  <div style="font-size:12px;color:#888;margin-bottom:8px;">Registriert: {{ user.created_at.strftime("%d.%m.%Y %H:%M") if user.created_at else "—" }}</div>
+  <div style="margin-bottom:10px;">
+    {% if user.is_admin %}<span class="status-badge s-admin">ADMIN</span>
+    {% elif user.status == "pending" %}<span class="status-badge s-pending">AUSSTEHEND</span>
+    {% elif user.status == "approved" %}<span class="status-badge s-approved">FREIGEGEBEN</span>
+    {% else %}<span class="status-badge s-rejected">ABGELEHNT</span>{% endif %}
+  </div>
+  {% if not user.is_admin %}
+  <div>
+    {% if user.status != "approved" %}<a href="{{ url_for("approve_user", user_id=user.id) }}" class="btn-sm" style="background:#059669;color:#fff;">&#x2713; Freigeben</a>{% endif %}
+    {% if user.status != "rejected" %}<a href="{{ url_for("reject_user", user_id=user.id) }}" class="btn-sm" style="background:#DC2626;color:#fff;">&#x2717; Ablehnen</a>{% endif %}
+    <a href="{{ url_for("delete_user", user_id=user.id) }}" class="btn-sm" style="background:#f0f0f0;color:#666;" onclick="return confirm('Nutzer wirklich loeschen?')">&#x1F5D1; Loeschen</a>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+{% endblock %}
