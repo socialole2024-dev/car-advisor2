@@ -1,27 +1,129 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="margin-top:16px;">
-  <a href="{{ url_for('dashboard') }}" style="font-size:14px;color:#888;text-decoration:none;">&#8592; Zur&#xFC;ck</a>
-  <div class="card" style="margin-top:12px;">
-    <p class="page-title">{{ advice.title[:60] }}</p>
-    <p class="page-sub">Quelle: {{ advice.source }} &middot; {{ advice.url[:50] }}...</p>
-    {% if vehicle_data %}
-    <div style="margin-bottom:16px;">
-      {% for key, val in vehicle_data.items() %}
-        {% if val %}
-        <div class="advice-item">
-          <span class="stat-label" style="font-size:13px;color:#666;text-transform:capitalize;">{{ key }}</span>
-          <span style="font-weight:600;font-size:14px;">{{ val }}</span>
-        </div>
-        {% endif %}
-      {% endfor %}
-    </div>
-    {% endif %}
-    <div style="background:#f5f5f0;border-radius:10px;padding:16px;text-align:center;">
-      <div style="font-size:32px;margin-bottom:8px;">&#x1F916;</div>
-      <p style="font-weight:600;margin-bottom:4px;">KI-Analyse kommt bald</p>
-      <p style="font-size:13px;color:#888;">Fahrzeugdaten wurden gespeichert. Die KI-Checkliste wird in der n&#xE4;chsten Version automatisch generiert.</p>
-    </div>
-  </div>
+<style>
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e0e0e0;position:sticky;top:58px;z-index:99;}
+.tab{flex:1;padding:12px 6px;text-align:center;font-size:14px;font-weight:500;border-bottom:3px solid transparent;color:#888;cursor:pointer;}
+.tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a;}
+.page{display:none;padding:12px 0;}
+.page.active{display:block;}
+.price-tag{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.price-tag .lbl{font-size:13px;color:#666;}
+.price-tag .val{font-size:26px;font-weight:700;margin:4px 0;}
+.verdict{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;}
+.verdict.ok{background:#FEF3C7;color:#92400E;}
+.verdict.warn{background:#FEE2E2;color:#991B1B;}
+.stats{background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.stat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:14px;}
+.stat-row:last-child{border-bottom:none;}
+.stat-label{color:#666;}
+.stat-val{font-weight:600;}
+section{margin-bottom:10px;}
+.section-title{font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.6px;padding:0 4px 8px;}
+.check-item{background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;}
+.check-item label{display:flex;align-items:flex-start;padding:13px 14px;gap:12px;cursor:pointer;}
+.check-item input[type=checkbox]{display:none;}
+.checkmark{width:24px;height:24px;border-radius:50%;border:2px solid #ccc;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent;transition:all .15s;}
+.check-item input:checked~.checkmark{background:#059669;border-color:#059669;color:#fff;}
+.check-item input:checked~.checkmark::after{content:'\2713';}
+.check-item input:checked~.txt .main{color:#aaa;text-decoration:line-through;}
+.txt{flex:1;}
+.priority{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;margin-bottom:4px;}
+.priority.crit{background:#FEE2E2;color:#991B1B;}
+.priority.warn{background:#FEF3C7;color:#92400E;}
+.priority.info{background:#DBEAFE;color:#1E40AF;}
+.main{font-size:15px;font-weight:600;line-height:1.3;}
+.sub{font-size:13px;color:#777;margin-top:4px;line-height:1.45;}
+.verhandlung{background:#1a1a1a;color:#fff;border-radius:12px;padding:16px;margin-bottom:6px;}
+.verhandlung h3{font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.price-target{font-size:28px;font-weight:700;color:#4ADE80;margin-bottom:8px;}
+.verhandlung p{font-size:13px;line-height:1.6;color:#ccc;}
+.verhandlung strong{color:#fff;}
+.note-area{background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.note-area textarea{width:100%;border:none;outline:none;font-size:14px;font-family:inherit;resize:none;min-height:90px;background:transparent;}
+.progress-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e0e0e0;padding:10px 16px 12px;z-index:200;}
+.progress-label{font-size:13px;color:#666;margin-bottom:5px;display:flex;justify-content:space-between;}
+.progress-track{background:#e0e0e0;border-radius:4px;height:7px;}
+.progress-fill{height:100%;background:#059669;border-radius:4px;transition:width .25s;}
+</style>
+
+<div style="margin-top:10px;">
+<a href="{{ url_for('dashboard') }}" style="font-size:14px;color:#888;text-decoration:none;">&#8592; Zur&#xFC;ck</a>
+
+{% if checklist %}
+{% set vs = checklist.vehicle_summary %}
+<div class="price-tag" style="margin-top:12px;">
+  <div class="lbl">{{ vs.title }}</div>
+  <div class="val">{{ vs.price }}</div>
+  <span class="verdict {{ 'ok' if vs.market_assessment == 'fair' else 'warn' }}">{{ vs.market_comment }}</span>
 </div>
+<div class="stats">
+  <div class="stat-row"><span class="stat-label">Kilometer</span><span class="stat-val">{{ vs.mileage }}</span></div>
+  <div class="stat-row"><span class="stat-label">Baujahr</span><span class="stat-val">{{ vs.year }}</span></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('checks',this)">&#x1F50D; Checks</div>
+  <div class="tab" onclick="switchTab('onsite',this)">&#x1F697; Vor Ort</div>
+  <div class="tab" onclick="switchTab('deal',this)">&#x1F4AC; Verhandlung</div>
+</div>
+
+<div id="page-checks" class="page active">
+{% if checklist.dealbreakers %}
+<section><div class="section-title">&#x1F534; Dealbreaker</div>
+{% for i in checklist.dealbreakers %}
+<div class="check-item"><label><input type="checkbox" onchange="updateProgress()"><div class="checkmark"></div><div class="txt"><span class="priority crit">DEALBREAKER</span><div class="main">{{ i.title }}</div><div class="sub">{{ i.detail }}</div></div></label></div>
+{% endfor %}</section>{% endif %}
+{% if checklist.critical_checks %}
+<section><div class="section-title">&#x26A0;&#xFE0F; Kritisch</div>
+{% for i in checklist.critical_checks %}
+<div class="check-item"><label><input type="checkbox" onchange="updateProgress()"><div class="checkmark"></div><div class="txt"><span class="priority crit">KRITISCH</span><div class="main">{{ i.title }}</div><div class="sub">{{ i.detail }}</div></div></label></div>
+{% endfor %}</section>{% endif %}
+{% if checklist.important_checks %}
+<section><div class="section-title">&#x1F7E1; Wichtig</div>
+{% for i in checklist.important_checks %}
+<div class="check-item"><label><input type="checkbox" onchange="updateProgress()"><div class="checkmark"></div><div class="txt"><span class="priority warn">WICHTIG</span><div class="main">{{ i.title }}</div><div class="sub">{{ i.detail }}</div></div></label></div>
+{% endfor %}</section>{% endif %}
+</div>
+
+<div id="page-onsite" class="page">
+<section><div class="section-title">&#x1F50D; Vor-Ort-Checks</div>
+{% for i in checklist.onsite_checks %}
+<div class="check-item"><label><input type="checkbox" onchange="updateProgress()"><div class="checkmark"></div><div class="txt">
+<span class="priority {{ 'crit' if i.priority=='critical' else ('warn' if i.priority=='important' else 'info') }}">{{ 'KRITISCH' if i.priority=='critical' else ('WICHTIG' if i.priority=='important' else 'CHECK') }}</span>
+<div class="main">{{ i.title }}</div><div class="sub">{{ i.detail }}</div></div></label></div>
+{% endfor %}</section>
+</div>
+
+<div id="page-deal" class="page">
+{% set n = checklist.negotiation %}
+<div class="verhandlung">
+  <h3>Zielpreis</h3>
+  <div class="price-target">{{ n.target_price }} &#x20AC;</div>
+  <p><strong>Einstieg:</strong> {{ n.opening_offer }} &#x20AC;<br><br>
+  <strong>Argumente:</strong><br>{% for a in n.arguments %}&middot; {{ a }}<br>{% endfor %}<br>
+  <strong>&#x26A0; Limit: {{ n.limit }} &#x20AC;</strong><br>{{ n.limit_note }}</p>
+</div>
+<section><div class="section-title">&#x1F4DD; Notizen</div>
+<div class="note-area"><textarea placeholder="Eindr&#xFC;cke, Aussagen des Verk&#xE4;ufers..."></textarea></div></section>
+</div>
+
+{% else %}
+<div class="card" style="margin-top:12px;text-align:center;padding:30px;">
+  <div style="font-size:40px;margin-bottom:12px;">&#x26A0;&#xFE0F;</div>
+  <p style="font-weight:600;margin-bottom:6px;">Analyse fehlgeschlagen</p>
+  <p style="font-size:13px;color:#888;">{{ error }}</p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="margin-top:16px;">Zur&#xFC;ck</a>
+</div>
+{% endif %}
+</div>
+
+<div class="progress-bar">
+  <div class="progress-label"><span id="pt">Checks erledigt</span><span id="pc">0 / 0</span></div>
+  <div class="progress-track"><div class="progress-fill" id="pf" style="width:0%"></div></div>
+</div>
+<script>
+function switchTab(id,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));el.classList.add('active');document.getElementById('page-'+id).classList.add('active');updateProgress();}
+function updateProgress(){var p=document.querySelector('.page.active');if(!p)return;var all=p.querySelectorAll('input[type=checkbox]');var done=p.querySelectorAll('input[type=checkbox]:checked');var pct=all.length?Math.round(done.length/all.length*100):0;document.getElementById('pf').style.width=pct+'%';document.getElementById('pc').textContent=done.length+' / '+all.length;document.getElementById('pt').textContent=pct===100?'\u2705 Alles gecheckt!':'Checks erledigt';}
+updateProgress();
+</script>
 {% endblock %}
