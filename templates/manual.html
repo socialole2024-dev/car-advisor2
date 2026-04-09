@@ -2,22 +2,29 @@
 {% block content %}
 <div class="card" style="margin-top:20px;">
   <p class="page-title">Fahrzeugdaten eingeben</p>
-  <p class="page-sub">Inserat konnte nicht automatisch ausgelesen werden. Bitte Daten eingeben.</p>
+  <p class="page-sub">Das Inserat konnte nicht automatisch ausgelesen werden. Bitte die Daten aus dem Inserat erg&#xE4;nzen.</p>
+  {% set vd = advice.vehicle_data|tojson|safe %}
   <form method="POST">
     <label>Fahrzeugbezeichnung</label>
-    <input type="text" name="title" placeholder="z.B. VW Golf 1.4 TSI" required>
+    <input type="text" name="title" placeholder="z.B. VW Golf 1.4 TSI" required
+      value="{{ advice.vehicle_data|fromjson('title', '') if advice.vehicle_data else '' }}">
     <label>Marke</label>
-    <input type="text" name="make" placeholder="z.B. Volkswagen">
+    <input type="text" name="make" placeholder="z.B. Volkswagen"
+      value="{{ advice.vehicle_data|fromjson('make', '') if advice.vehicle_data else '' }}">
     <label>Modell</label>
-    <input type="text" name="model" placeholder="z.B. Golf">
+    <input type="text" name="model" placeholder="z.B. Golf"
+      value="{{ advice.vehicle_data|fromjson('model', '') if advice.vehicle_data else '' }}">
     <label>Baujahr</label>
-    <input type="text" name="year" placeholder="z.B. 2015">
+    <input type="text" name="year" placeholder="z.B. 2015"
+      value="{{ advice.vehicle_data|fromjson('year', advice.vehicle_data|fromjson('year_hint', '')) if advice.vehicle_data else '' }}">
     <label>Kilometerstand</label>
-    <input type="text" name="mileage" placeholder="z.B. 85000">
+    <input type="text" name="mileage" placeholder="z.B. 85000"
+      value="{{ advice.vehicle_data|fromjson('mileage', advice.vehicle_data|fromjson('mileage_hint', '')) if advice.vehicle_data else '' }}">
     <label>Preis (&#x20AC;)</label>
-    <input type="text" name="price" placeholder="z.B. 8500">
+    <input type="text" name="price" placeholder="z.B. 8500"
+      value="{{ advice.vehicle_data|fromjson('price', advice.vehicle_data|fromjson('price_hint', '')) if advice.vehicle_data else '' }}">
     <label>Kraftstoff</label>
-    <input type="text" name="fuel" placeholder="z.B. Benzin / Diesel">
+    <input type="text" name="fuel" placeholder="z.B. Benzin / Diesel / Elektro">
     <button type="submit" class="btn btn-primary" style="margin-top:8px;">Analyse starten &#x2192;</button>
   </form>
   <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Abbrechen</a>
