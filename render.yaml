@@ -2,6 +2,6 @@ services:
   - type: web
     name: car-advisor2-1
     env: python
-    buildCommand: pip install -r requirements.txt && python -m playwright install chromium
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn main:app
     plan: starter
