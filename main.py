@@ -22,6 +22,15 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'olec.laude@pm.me')
 MAIL_USER = os.environ.get('MAIL_USER', 'olec.laude@pm.me')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
 
+@app.template_filter('fromjson')
+def fromjson_filter(s, key, default=''):
+    try:
+        import json
+        d = json.loads(s) if isinstance(s, str) else s
+        return d.get(key, default) or default
+    except:
+        return default
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
