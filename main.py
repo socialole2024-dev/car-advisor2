@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from scraper import scrape_url
+from url_utils import extract_url
 from advisor import generate_checklist
 from exporter import build_export_html
 from functools import wraps
@@ -258,10 +259,11 @@ def new_advice():
     if current_user.status != 'approved':
         return redirect(url_for('pending'))
     if request.method == 'POST':
-        url = request.form.get('url', '').strip()
-        if not url:
+        raw_input = request.form.get('url', '').strip()
+        if not raw_input:
             flash('Bitte eine URL eingeben.')
             return render_template('new.html')
+        url = extract_url(raw_input)
         vehicle_data, source = scrape_url(url)
         title = vehicle_data.get('title', 'Fahrzeug')[:200] if vehicle_data else 'Manuelle Eingabe'
         if not vehicle_data:
