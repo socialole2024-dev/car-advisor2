@@ -280,7 +280,7 @@ def new_advice():
         advice = Advice(user_id=current_user.id, url=url, title=title, vehicle_data=json.dumps(vehicle_data or {}), source=source)
         db.session.add(advice)
         db.session.commit()
-        return redirect(url_for('analyze', advice_id=advice.id) if vehicle_data else url_for('manual_input', advice_id=advice.id))
+        return redirect(url_for('analyze', advice_id=advice.id))
     return render_template('new.html')
 
 @app.route('/analyze/<int:advice_id>')
@@ -291,7 +291,7 @@ def analyze(advice_id):
     checklist = None
     error = None
     try:
-        checklist = generate_checklist(vehicle_data)
+        checklist = generate_checklist(vehicle_data, url=advice.url)
         advice.checklist_data = json.dumps(checklist)
         t = checklist.get('vehicle_summary', {}).get('title', '')
         if t:
