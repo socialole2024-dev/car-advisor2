@@ -3,80 +3,55 @@ import json
 
 client = anthropic.Anthropic()
 
-SYSTEM_PROMPT = """Du bist ein erfahrener Gebrauchtwagen-Gutachter in Deutschland. 
-Du analysierst Fahrzeuginserate und erstellst praezise, fahrzeugspezifische Kaufberatungen.
-Deine Ausgabe ist immer ein valides JSON-Objekt - nichts anderes, kein Text davor oder danach.
+SYSTEM_PROMPT = """Du bist ein erfahrener Gebrauchtwagen-Gutachter in Deutschland.
+Du erhaeltst entweder strukturierte Fahrzeugdaten ODER nur eine Inserate-URL.
+In beiden Faellen erstellst du eine vollstaendige, fahrzeugspezifische Kaufberatung.
 
-Das JSON hat folgende Struktur:
+Bei einer URL: Erkenne Marke, Modell, Baujahr und weitere Infos aus der URL-Struktur und deinem Wissen ueber typische Fahrzeuge dieser Kategorie.
+
+Antworte NUR mit einem validen JSON-Objekt, kein Text davor oder danach:
 {
   "vehicle_summary": {
     "title": "Fahrzeugbezeichnung",
-    "price": "Preis in EUR",
-    "mileage": "Kilometerstand",
-    "year": "Baujahr",
-    "market_assessment": "fair|cheap|expensive",
-    "market_comment": "Kurze Einschaetzung zum Preis"
+    "price": "Preis oder 'Nicht angegeben'",
+    "mileage": "Kilometerstand oder 'Nicht angegeben'",
+    "year": "Baujahr oder 'Nicht angegeben'",
+    "market_assessment": "fair|cheap|expensive|unknown",
+    "market_comment": "Kurze Einschaetzung"
   },
-  "dealbreakers": [
-    {
-      "title": "Pruefpunkt",
-      "detail": "Erklaerung warum kritisch und was zu pruefen ist",
-      "priority": "dealbreaker"
-    }
-  ],
-  "critical_checks": [
-    {
-      "title": "Pruefpunkt", 
-      "detail": "Was genau pruefen und worauf achten",
-      "priority": "critical"
-    }
-  ],
-  "important_checks": [
-    {
-      "title": "Pruefpunkt",
-      "detail": "Was pruefen",
-      "priority": "important"
-    }
-  ],
-  "onsite_checks": [
-    {
-      "title": "Vor-Ort Check",
-      "detail": "Was vor Ort pruefen",
-      "priority": "critical|important|info"
-    }
-  ],
+  "dealbreakers": [{"title": "...", "detail": "...", "priority": "dealbreaker"}],
+  "critical_checks": [{"title": "...", "detail": "...", "priority": "critical"}],
+  "important_checks": [{"title": "...", "detail": "...", "priority": "important"}],
+  "onsite_checks": [{"title": "...", "detail": "...", "priority": "critical|important|info"}],
   "negotiation": {
     "target_price": 0,
     "opening_offer": 0,
-    "arguments": ["Argument 1", "Argument 2"],
+    "arguments": ["..."],
     "limit": 0,
-    "limit_note": "Erklaerung"
+    "limit_note": "..."
   }
 }
 
-Beruecksichtige bekannte Schwachstellen, Rueckrufe und typische Probleme fuer das spezifische Modell und Baujahr.
+Beruecksichtige bekannte Schwachstellen, Rueckrufe und typische Probleme fuer das spezifische Modell.
+Wenn Preis/km unbekannt: Setze target_price/opening_offer/limit auf 0 und erklaere im limit_note dass manuell verhandelt werden soll.
 Alle Texte auf Deutsch."""
 
-def generate_checklist(vehicle_data):
-    vehicle_str = json.dumps(vehicle_data, ensure_ascii=False)
-    
+def generate_checklist(vehicle_data, url=None):
+    # Build context: use scraped data if available, otherwise just the URL
+    if vehicle_data and any(v for k, v in vehicle_data.items() if k not in ('_scraped',) and v):
+        context = "Fahrzeugdaten aus dem Inserat:\n" + json.dumps(vehicle_data, ensure_ascii=False)
+    elif url:
+        context = f"Inserate-URL (keine Daten extrahierbar):\n{url}\n\nBitte analysiere anhand der URL-Struktur und erstelle eine generische aber nuetzliche Kaufberatung fuer den Fahrzeugtyp."
+    else:
+        context = "Unbekanntes Fahrzeug - erstelle eine allgemeine Kaufberatung."
+
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
-        messages=[
-            {
-                "role": "user", 
-                "content": f"Erstelle eine Kaufberatungs-Checkliste fuer dieses Fahrzeug:\n\n{vehicle_str}"
-            }
-        ],
-        system=SYSTEM_PROMPT
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": f"Erstelle eine Kaufberatungs-Checkliste:\n\n{context}"}]
     )
-    
-    response_text = message.content[0].text.strip()
-    
-    # Clean up if wrapped in code blocks
-    if response_text.startswith('```'):
-        lines = response_text.split('\n')
-        response_text = '\n'.join(lines[1:-1])
-    
-    return json.loads(response_text)
+    text = message.content[0].text.strip()
+    if text.startswith('```'):
+        text = "\n".join(text.split("\n")[1:-1])
+    return json.loads(text)
